@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo testing",
+    "release:dry-run": "release-it --ci --dry-run",
     "release": "release-it"
   },
   "repository": {
