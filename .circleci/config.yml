@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  aws-s3: circleci/aws-s3@1.0.11
+  aws-s3: circleci/aws-s3@3.0
 
 references:
   js_deps_cache_key: &js_deps_cache_key v1-dependency-{{ checksum "package-lock.json" }}
@@ -10,7 +10,16 @@ master_only: &master_only
   filters:
     branches:
       only: master
-
+ignore_gh_pages: &ignore_gh_pages
+  filters:
+    branches:
+      ignore: gh-pages
+release_tags_only: &release_tags_only
+  filters:
+    tags:
+      only: /.*/
+    branches:
+      ignore: /.*/
 commands:
   git_authoring:
     description: Authoring git commit.
@@ -22,7 +31,7 @@ commands:
 jobs:
   build:
     docker:
-      - image: circleci/node:12
+      - image: cimg/node:18.12
     steps:
       - checkout
       - restore_cache:
@@ -37,7 +46,7 @@ jobs:
 
   test:
     docker:
-      - image: circleci/node:12
+      - image: cimg/node:18.12
     environment:
       NODE_ENV: ci
     steps:
@@ -50,7 +59,7 @@ jobs:
 
   release:
     docker:
-      - image: circleci/node:12
+      - image: cimg/node:18.12
     steps:
       - checkout
       - git_authoring
@@ -62,13 +71,12 @@ jobs:
 
   deploy:
     docker:
-      - image: circleci/node:12
+      - image: cimg/node:18.12
     steps:
       - checkout
       - aws-s3/sync:
           from: templates
           to: "s3://stable-seeds/code-quality/templates"
-          overwrite: true
           arguments: |
             --acl public-read
       - aws-s3/copy:
@@ -81,8 +89,10 @@ workflows:
   version: 2
   default:
     jobs:
-      - build
+      - build:
+          <<: *ignore_gh_pages
       - test:
+          <<: *ignore_gh_pages
           requires:
             - build
       - release:
@@ -92,8 +102,4 @@ workflows:
   delivering:
     jobs:
       - deploy:
-          filters:
-            tags:
-              only: /.*/
-            branches:
-              ignore: /.*/
+          <<: *release_tags_only
